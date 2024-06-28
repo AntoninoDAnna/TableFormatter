@@ -1,0 +1,10 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.9.3"
+manifest_format = "2.0"
+project_hash = "663611240af7b58aef828f036a4a887e7a295924"
+
+[[deps.TableFormatter]]
+path = ".."
+uuid = "3da99bb1-9270-4ae4-a7cd-1ed676c4bb49"
+version = "0.1.0"

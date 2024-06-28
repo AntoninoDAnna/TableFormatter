@@ -1,0 +1,4 @@
+name = "TableFormatter"
+uuid = "3da99bb1-9270-4ae4-a7cd-1ed676c4bb49"
+authors = ["Antonino DAnna <antonino.danna@estudiante.uam.es>"]
+version = "0.1.0"
