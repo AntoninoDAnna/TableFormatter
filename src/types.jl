@@ -6,4 +6,4 @@
   pm::String ## pm style 
 end
 
-LaTeXsyntax = Syntax(cs = " & ",rs=" \\hline",el ="\\",ms=" \$ ",pm=" \\pm ")
+LaTeXsyntax = Syntax(cs = " & ",rs=" \\hline",el ="\\\\",ms=" \$ ",pm=" \\pm ")
