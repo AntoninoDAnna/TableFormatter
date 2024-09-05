@@ -9,16 +9,13 @@ In particular:
  - Numbers with errors are represented by an NTuple, the first component is the central value, and the others are the errors. 
 
 Keywords parameters:
-- real_precision::Union{Nothing,Int64}=nothing, set the precision to which round real numbers. By default, it is set to nothing, so no rounding is applied. When set, it round the number as round(x,digits=real_precision)
-- extra_precision::Int64=0 when rounding Numbers with errors, it increases the precision
-- error_style::String ="bs", it sets the style for writing the errors. "s" forces the errors in a column to have the same number of digits by adding zeros before the shorter one. "b" writes the error in brackets
-- F::Syntax=LaTeXsyntax, set the syntax
-
+- custom_precision::Union{Nothing, Int64}=nothing, override the precision to which round numbers. It is set to nothing by default.
+- error_style::String ="bz", it sets the style for writing the errors. "z" applies zero-padding until the errors within a column have the same number of digits,  "b" writes the error in brackets, "p" writes the error with a \pm 
+- F::Syntax=LaTeXsyntax, set the syntax, by default uses a LaTeX syntax
 
 Syntax structure:
 This structure defines the syntax for writing the table. Its components are:
   - cs::String ## column separator
-  - rs::String ## row separator
   - el::String ## end line
   - ms::String ## math environment separator
-  - pm::String ## pm style
+  - pm::String ## pm style   
