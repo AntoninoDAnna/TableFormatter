@@ -82,7 +82,7 @@ function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...)
   return output
 end
 
-format_numbers(M::AbstractVector{String};k...) = M
+format_numbers(M::AbstractVector{<:AbstractString};k...) = M
 
 function format_numbers(V::AbstractVector{Int64},zpad::Bool=false;k...)
   M = magnitude10(maximum(V));
