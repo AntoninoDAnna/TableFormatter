@@ -184,3 +184,34 @@ function make_table(M::AbstractMatrix;
     output = [to_row([r...]) for r in eachrow(m)]
   return output
 end
+
+
+"""
+    make_table(data::AbstractVector...;k...)::Vector{String}
+
+It takes a set of AbstractVector and generate a table. Each vector correspond to a column colum of 
+the table and all data vector must have the same number of data. Remember to use `missing` for empty
+table entries. 
+
+## Example
+    v1 = [1,2,3]
+    v2 = ["test", missing, "test"]
+    v3 = [(12.0,0.2,0.3),(2.12,0.3,0.02),(2.22,0.03,0.51)]
+
+    make_table(v1,v2,v3)
+    # "1 & test &  \$ 12.00(20)(30) \$ \\\\"  
+    # "2 &      &  \$  2.12(30)(02) \$ \\\\"
+    # "3 & test &  \$  2.22(03)(51) \$ \\\\"    
+"""
+function make_table(data::AbstractVector...; k...)::Vector{String}
+  l = length(data);
+  n = length(data[1]);
+  if any(length.(data).!=n)
+    error("ERROR: The data vectors have diffenents size. Consider using 'missing' for empty table entries")
+  end
+  M = Matrix{Any}(undef,n,l)
+  for i in eachindex(data)
+    M[:,i] = data[i]
+  end
+  return make_table(M;k...)
+end

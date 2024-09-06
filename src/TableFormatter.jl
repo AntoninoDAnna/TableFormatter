@@ -1,5 +1,5 @@
 module TableFormatter
-  using Printf
+  using Format
   
   include("types.jl")
   include("make_tables.jl")
