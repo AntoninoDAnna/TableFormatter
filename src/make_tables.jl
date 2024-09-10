@@ -6,6 +6,9 @@ to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
 
 function to_string(A::AbstractVector{Any};k...)
   non_missing = findall(x->!ismissing(x),A)
+  if length(non_missing) ==0
+    return to_string.(A);
+  end
   missing_val = findall(x-> ismissing(x),A)
   T = typeof.(A[non_missing])
   if !all(T.===T[1]) && !any(T.<:Real)
@@ -78,6 +81,9 @@ end
 function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...) 
   filter = findall(x->!ismissing(x),M)
   output = Vector{Any}(missing,length(M))
+  if length(filter) ==0
+    return M
+  end
   output[filter] = format_numbers([M[filter]...];k...)
   return output
 end
@@ -94,10 +100,6 @@ function format_numbers(V::AbstractVector{T};custom_precision::Union{Nothing,Int
   M = magnitude10(maximum(V));
   return format.(V,width=M+m+1,precision = m, zeropadding = zpad);
 end
-
-
-
-
 
 function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};custom_precision::Union{Nothing,Int64}=nothing,k...)
   N = length(M[1])
