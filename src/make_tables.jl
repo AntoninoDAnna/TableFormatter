@@ -141,7 +141,9 @@ If a column has multiple types elements, an error is thrown.
     - "b": the error is written in brakets: 3.1415(23)
     - "p": the error is written with a `\pm` sign: 3.1415 ± 0.0023
     - "z": if given, the errors within the same columns are forced to have the same number of digits using zeropadding
-  - `custom_precision::Union{Int64,Nothing}=nothing`: override the detected precision 
+  - `custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing`: override the detected precision. 
+    - if `Int64` the precision of all the entries is overridden
+    - if `Vector{Tuple{Int64,Int64}}`: the tuple is interepret as `(c, p)`, such that the precision in column `c` is set to `p`. This allows to set diffenents precision for each column. 
   - `zpad::Bool=false`: it forces the zero padding. while `error_style="z"` force zeropadding only with the errors,`zpad` forces it also for central value
   
 ## Example
@@ -174,12 +176,19 @@ If a column has multiple types elements, an error is thrown.
 function make_table(M::AbstractMatrix;
   F::Syntax=LaTeXsyntax,
   error_style::String="bz", 
-  custom_precision::Union{Int64,Nothing}=nothing,
+  custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
   zpad::Bool = false) ::Vector{String}
-  
   output = Vector{String}(undef,size(M,1))
+  if custom_precision isa Vector
+    cs::Vector{Any} = [nothing for _ in axes(M,2)];
+    for (c,precision) in custom_precision
+      cs[c] = precision
+    end
+    m = reduce(hcat,[format_numbers([M[:,c]...],custom_precision=cs[c]) for c in axes(M,2)])
+  else
+    m = reduce(hcat,[format_numbers([c...],custom_precision=custom_precision) for c in eachcol(M)])
+  end
 
-  m = reduce(hcat,[format_numbers([c...],custom_precision=custom_precision) for c in eachcol(M)])
   for i in axes(m,2)
     m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=custom_precision,zpad=zpad)
   end
@@ -217,3 +226,4 @@ function make_table(data::AbstractVector...; k...)::Vector{String}
   end
   return make_table(M;k...)
 end
+
