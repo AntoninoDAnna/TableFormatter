@@ -178,15 +178,21 @@ function make_table(M::AbstractMatrix;
   error_style::String="bz", 
   custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
   zpad::Bool = false) ::Vector{String}
-  output = Vector{String}(undef,size(M,1))
+  output = Vector{String}(undef,size(M,1))  
   if custom_precision isa Vector
     cs::Vector{Any} = [nothing for _ in axes(M,2)];
     for (c,precision) in custom_precision
       cs[c] = precision
     end
     m = reduce(hcat,[format_numbers([M[:,c]...],custom_precision=cs[c]) for c in axes(M,2)])
+    for i in axes(m,2)
+      m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=cs[i],zpad=zpad)
+    end
   else
     m = reduce(hcat,[format_numbers([c...],custom_precision=custom_precision) for c in eachcol(M)])
+    for i in axes(m,2)
+      m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=custom_precision,zpad=zpad)
+    end
   end
 
   for i in axes(m,2)
@@ -214,7 +220,7 @@ table entries.
     # "2 &      &  \$  2.12(30)(02) \$ \\\\"
     # "3 & test &  \$  2.22(03)(51) \$ \\\\"    
 """
-function make_table(data::AbstractVector...; k...)::Vector{String}
+function make_table(data::AbstractVector ...; k...)::Vector{String}
   l = length(data);
   n = length(data[1]);
   if any(length.(data).!=n)
