@@ -1,6 +1,6 @@
 using Format
-magnitude(x::Real) = floor(Int64,log10(0.5*x))
-magnitude10(x::Real) = ceil(Int64,log10(x));
+magnitude(x::Real) = x==0.0 ? 1 : floor(Int64,log10(0.5*x))
+magnitude10(x::Real) = x==0.0 ? 2 : ceil(Int64,log10(x));
 
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
 
@@ -66,7 +66,7 @@ function to_string(A::AbstractVector{NTuple{N,T}} where {N,T<:Real}; F::Syntax=L
       e = format.(e,width=M+m+1,precision = m, zeropadding = true);
     end
   end
-  M = magnitude10(maximum(v));
+  M = magnitude10(maximum(abs.(v)));
   v = format.(v,width=M+m+1,precision = m, zeropadding = zpad);
   if 'b' in error_style
     return [string(F.ms,v[i],"(",join(e[:,i],")("),")",F.ms) for i in eachindex(v)]
@@ -91,13 +91,13 @@ end
 format_numbers(M::AbstractVector{<:AbstractString};k...) = M
 
 function format_numbers(V::AbstractVector{Int64},zpad::Bool=false;k...)
-  M = magnitude10(maximum(V));
+  M = magnitude10(maximum(abs.(V)));
   return format.(V,width=M,precision =M, zeropadding = zpad);
 end
 
 function format_numbers(V::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat
   m = isnothing(custom_precision) ? 8 : custom_precision
-  M = magnitude10(maximum(V));
+  M = magnitude10(maximum(abs.(V)));
   return format.(V,width=M+m+1,precision = m, zeropadding = zpad);
 end
 
