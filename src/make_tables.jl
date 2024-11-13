@@ -2,7 +2,7 @@
 magnitude(x::Real) = floor(Int,log10(0.5*x))
 
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
-to_string(A::String;k...) =  A 
+to_string(A::AbstractString;k...) =  A 
 to_string(A::Real;F::Syntax=LaTeXsyntax,k...) =  string(F.ms,A,F.ms)
 to_string(A::Missing;k...) = " ";
 
@@ -21,7 +21,11 @@ function to_string(A::NTuple{N,Real} where N; F::Syntax=LaTeXsyntax, error_style
   else
     return string(F.ms,join([v,e...],F.pm),F.ms)
   end
- end
+end
+
+function to_string(A::Vector{T} where T<:Real; F::Syntax=LaTeXsyntax, k...)
+  return string(F.ms,"[",join(A,","),"]",F.ms)
+end
 
 function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...) 
   filter = findall(x->!ismissing(x),M)
@@ -30,9 +34,9 @@ function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...)
   return output
 end
 
-format_numbers(M::AbstractVector{String};k...) = M
+format_numbers(M::AbstractVector{T} where T<:AbstractString  ;k...) = M
 
-function format_numbers(V::AbstractVector{T};real_precision::Union{Nothing,Int64}=nothing,k...) where T <:Real
+function format_numbers(V::AbstractVector{T} where T <:Real; real_precision::Union{Nothing,Int64}=nothing,k...) 
   if isnothing(real_precision)
     return V
   end
@@ -51,6 +55,8 @@ function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};extra_p
   val = round.(val,digits=m)
   return [(val[i],err[i,:]...) for i in eachindex(val)]
 end
+
+format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real; k...) = V
 
 function make_table(M::AbstractMatrix;F::Syntax=LaTeXsyntax,real_precision::Union{Nothing,Int64} = nothing,extra_precision::Int64=0,error_style::String="bs")
   output = Vector{String}(undef,size(M,1))
