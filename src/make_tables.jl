@@ -60,7 +60,7 @@ function to_string(A::AbstractVector{NTuple{N,T}} where {N,T<:Real}; F::Syntax=L
   if 'z' in error_style
     M = magnitude10(maximum(e));
     if all(e.<1.0)
-      e *= 10^m 
+      e *= 10^float(m) 
       e = format.(e,width=M+m,precision=0, zeropadding=true)
     else
       e = format.(e,width=M+m+1,precision = m, zeropadding = true);
