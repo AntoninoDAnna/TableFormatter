@@ -113,8 +113,6 @@ end
 
 format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real; k...) = V
 
-format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real; k...) = V 
-
 
 
 @doc raw"""
@@ -217,7 +215,6 @@ table entries.
     v2 = ["test", missing, "test"]
     v3 = [(12.0,0.2,0.3),(2.12,0.3,0.02),(2.22,0.03,0.51)]
 
-    make_table(v1,v2,v3)
     # "1 & test &  \$ 12.00(20)(30) \$ \\\\"  
     # "2 &      &  \$  2.12(30)(02) \$ \\\\"
     # "3 & test &  \$  2.22(03)(51) \$ \\\\"    
