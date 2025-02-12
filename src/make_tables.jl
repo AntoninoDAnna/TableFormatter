@@ -1,6 +1,7 @@
 using Format
 magnitude(x::Real) = x==0.0 ? 1 : floor(Int64,log10(0.5*x))
 magnitude10(x::Real) = x==0.0 ? 2 : ceil(Int64,log10(x));
+non_zero(a::AbstractArray) = a[findall(x->x!=0.0,a)]
 
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
 
@@ -56,7 +57,10 @@ function to_string(A::AbstractVector{NTuple{N,T}} where {N,T<:Real}; F::Syntax=L
   if 'p' in error_style
     return [string(F.ms,join([v[i],e[:,i]...],F.pm),F.ms) for i in eachindex(v)]
   end
-  m = isnothing(custom_precision) ? -magnitude(minimum(e)) : custom_precision
+
+  
+
+  m = isnothing(custom_precision) ? -magnitude(minimum(non_zero(e))) : custom_precision
   if 'z' in error_style
     M = magnitude10(maximum(e));
     if all(e.<1.0)
