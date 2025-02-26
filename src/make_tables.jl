@@ -16,117 +16,103 @@ function rotate(M::AbstractVector)
   return m
 end
 
-function to_string(A::AbstractVector{Any};k...)
-  non_missing = findall(x->!ismissing(x),A)
-  if length(non_missing) ==0
-    return to_string.(A);
-  end
-  missing_val = findall(x-> ismissing(x),A)
-  T = typeof.(A[non_missing])
-  if !all(T.===T[1]) && !any(T.<:Real)
-    error("TableFormatter Error: table is not well formatted:")
-  end
-  if T[1] <: AbstractString
-    A[missing_val] .=" ";
-    return to_string(String.(A))
-  end
-  V = Vector{T[1]}(undef, length(A[non_missing]))
-  for i in eachindex(A[non_missing]) 
-    V[i] = A[non_missing[i]]
-  end
-  output = [" " for _ in A];
-  output[non_missing]= to_string(V;k...)
-  return to_string(output)
-end
-
-function to_string(A::AbstractVector{<:AbstractString};k...) 
-  m = maximum(length.(A))
-  return [a*' '^(m-length(a)) for a in A]
-end 
-to_string(A::Missing;k...) = "-";
-to_string(A::AbstractString; k...) = A
-
-function to_string(A::AbstractVector{T} where T<: Real;F::Syntax=LaTeXsyntax, custom_precision::Union{Int64,Nothing}=nothing, zpad::Bool=false, k...)
-  M= maximum(A);
-  m= minimum(A)
-  m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
-
-  if zpad && M>1.0
-    w = magnitude10(M)+m+1;
-    format.(A,precision = m, width=w, zeropadding = true)
-  else
-    format.(A,precision = m)
-  end
-  return [string(F.ms,a, F.ms) for a in A];
-end
-
-function to_string(A::AbstractVector{NTuple{N,T}} where {N,T<:Real}; F::Syntax=LaTeXsyntax, error_style::String="bz",zpad::Bool=false,custom_precision::Union{Int64,Nothing}=nothing)
-  error_style = [error_style...]
-  N = length(A[1]);
-  v = [a[1] for a in A]
-  e = [a[i] for i in 2:N, a in A]
-  if 'p' in error_style
-    return [string(F.ms,join([v[i],e[:,i]...],F.pm),F.ms) for i in eachindex(v)]
-  end
-
-  
-
-  m = isnothing(custom_precision) ? -magnitude(minimum(non_zero(e))) : custom_precision
-  if 'z' in error_style
-    M = magnitude10(maximum(e));
-    if all(e.<1.0)
-      e *= 10^float(m) 
-      e = format.(e,width=M+m,precision=0, zeropadding=true)
-    else
-      e = format.(e,width=M+m+1,precision = m, zeropadding = true);
-    end
-  end
-  M = magnitude10(maximum(abs.(v)));
-  v = format.(v,width=M+m+1,precision = m, zeropadding = zpad);
-  if 'b' in error_style
-    return [string(F.ms,v[i],"(",join(e[:,i],")("),")",F.ms) for i in eachindex(v)]
-  end
-end
-
-function to_string(V::AbstractVector{<:AbstractVector{T}} where T<:Real;F::Syntax=LaTeXsyntax,kwargs...)
-  A = [string(F.ms,"[",join(v,", "),"]",F.ms) for v in V]
-  return to_string(A,F=F;kwargs...) 
-end
-
 function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...) 
   filter = findall(x->!ismissing(x),M)
-  output = Vector{Any}(missing,length(M))
   if length(filter) ==0
     return M
   end
+  output = fill(F.miss,length(M))
   output[filter] = format_numbers([M[filter]...];k...)
   return output
 end
 
+format_numbers(V::AbstractVector{T} where T<:Real; F::Syntax=LaTeXsyntax,k...) = string(F.ms,"[",join(v,", "),"]",F.ms)
+
+format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real;F::Syntax=LaTeXsyntax;k...) =  format_numbers.(V,F=F;k...)
+
+format_numbers(A::AbstractString;k...) = A
+
 format_numbers(M::AbstractVector{<:AbstractString};k...) = M
+
+format_numbers(x::Int64; F::Syntax=LaTeXsyntax,) = string(F.ms,x,F.ms)
 
 function format_numbers(V::AbstractVector{Int64},zpad::Bool=false;k...)
   M = magnitude10(maximum(abs.(V)));
   return format.(V,width=M,precision =M, zeropadding = zpad);
 end
 
-function format_numbers(V::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat
+function format_numbers(V::T;F::Syntax=LaTeXsyntax,custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat  
   m = isnothing(custom_precision) ? 8 : custom_precision
-  M = magnitude10(maximum(abs.(V)));
-  return format.(V,width=M+m+1,precision = m, zeropadding = zpad);
+  M = magnitude10(abs.(V));
+  return string(F.ms,format(V,width=M+m+1,precision = m, zeropadding = zpad),F.ms)
 end
 
-function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};custom_precision::Union{Nothing,Int64}=nothing,k...)
+function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat
+  M= maximum(abs.(A));
+  m= minimum(A)
+  m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
+  if zpad && M>1.0
+    w = magnitude10(M)+m+1;
+    return [string(F.ms,format(a,precision = m, width=w, zeropadding = true), F.ms) for a in A]
+  else
+    return [string(F.ms,format(a,precision = m), F.ms) for a in A]
+  end
+end
+
+function format_numbers(x::NTuple{N,T} where {N,T<:Real};error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
+  N = length(x)
+  err = [getfield(x,j) for j in 2:N]
+  val = x[1]
+  m = isnothing(custom_precision) ? -magnitude((non_zero(err))) : custom_precision
+  err = round.(err,digits=m)
+  val = round(val,digits=m)
+  if 'p' in error_style
+    return string(F.ms,join([val,err...],F.pm),F.ms)
+  end
+  if 'z' in error_style
+    M = magnitude10(maximum(err));
+    if all(err.<1.0)
+      err *= 10^float(m) 
+      err = format.(err,width=M+m,precision=0, zeropadding=true)
+    else
+      err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+    end
+  end
+  M = magnitude10(abs(val));
+  val = format(val,width=M+m+1,precision = m, zeropadding = zpad);
+  if 'b' in error_style
+    return string(F.ms,val,"(",join(err,")("),")",F.ms)
+  end
+  error("TableFormatter: non valid error style.")
+end
+
+function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
   N = length(M[1])
   err = [getfield(M[i],j) for i in eachindex(M), j in 2:N];
   val = getfield.(M,1);
-  m = isnothing(custom_precision) ?  -minimum(magnitude.(err)) : custom_precision;
+  m = isnothing(custom_precision) ? -magnitude(minimum(non_zero(err))) : custom_precision
   err = round.(err,digits=m)
   val = round.(val,digits=m)
-  return [(val[i],err[i,:]...) for i in eachindex(val)]
-end
 
-format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real; k...) = V
+  if 'p' in error_style
+    return [string(F.ms,join([val[i],err[:,i]...],F.pm),F.ms) for i in eachindex(val)]
+  end
+  if 'z' in error_style
+    M = magnitude10(maximum(err));
+    if all(err.<1.0)
+      err *= 10^float(m) 
+      err = format.(err,width=M+m,precision=0, zeropadding=true)
+    else
+      err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+    end
+  end
+  M = magnitude10(maximum(abs.(v)));
+  val = format.(val,width=M+m+1,precision = m, zeropadding = zpad);
+  if 'b' in error_style
+    return [string(F.ms,val[i],"(",join(err[:,i],")("),")",F.ms) for i in eachindex(val)]
+  end
+  error("TableFormatter: non valid error style.")
+end
 
 function no_ze(M,custom_precision::Vector,F::Syntax,error_style,zpad)
   m = [format_numbers(M[i,j],custom_precision=custom_precision[j]) for i in axes(M,1), j in axes(M,2)]

@@ -20,12 +20,13 @@ See also: [`LaTeXsyntax`](@ref)
   ms::String ## math envirorment separator
   pm::String ## pm style 
   bs::String ## block separator
+  empty::string
 end
 
 @doc raw"""
-    LaTeXsyntax::Syntax =  Syntax(cs = " & ",el ="\\\\",ms=" \$ ",pm=" \\pm ",bs = "\\hline"))
+    LaTeXsyntax::Syntax =  Syntax(cs = " & ",el ="\\\\",ms=" \$ ",pm=" \\pm ",bs = "\\hline",empty=""))
 
 Predefined syntax stucture for Latex syntax
 See also: [`Syntax`](@ref)
 """
-LaTeXsyntax = Syntax(cs = " & ",el ="\\\\",ms=" \$ ",pm=" \\pm ",bs = "\\hline")
+LaTeXsyntax = Syntax(cs = " & ",el ="\\\\",ms=" \$ ",pm=" \\pm ",bs = "\\hline",empty="\$ - \$")
