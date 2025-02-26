@@ -2,8 +2,19 @@ using Format
 magnitude(x::Real) = x==0.0 ? 1 : floor(Int64,log10(0.5*x))
 magnitude10(x::Real) = x==0.0 ? 2 : ceil(Int64,log10(x));
 non_zero(a::AbstractArray) = a[findall(x->x!=0.0,a)]
-
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
+
+function rotate(M::AbstractMatrix) 
+  m = typeof(M)(undef,size(M,2),size(M,1))
+  [m[i,j] = M[j,i] for i in axes(m,1), j in axes(m,2)]
+  return m
+end
+
+function rotate(M::AbstractVector) 
+  m = Matrix{Any}(undef,1,size(M,1))
+  [m[1,j] = M[j] for j in axes(m,2)]
+  return m
+end
 
 function to_string(A::AbstractVector{Any};k...)
   non_missing = findall(x->!ismissing(x),A)
@@ -32,7 +43,7 @@ function to_string(A::AbstractVector{<:AbstractString};k...)
   m = maximum(length.(A))
   return [a*' '^(m-length(a)) for a in A]
 end 
-to_string(A::Missing;k...) = " ";
+to_string(A::Missing;k...) = "-";
 to_string(A::AbstractString; k...) = A
 
 function to_string(A::AbstractVector{T} where T<: Real;F::Syntax=LaTeXsyntax, custom_precision::Union{Int64,Nothing}=nothing, zpad::Bool=false, k...)
@@ -117,7 +128,13 @@ end
 
 format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real; k...) = V
 
-
+function no_ze(M,custom_precision::Vector,F::Syntax,error_style,zpad)
+  m = [format_numbers(M[i,j],custom_precision=custom_precision[j]) for i in axes(M,1), j in axes(M,2)]
+  m = [to_string(m[i,j],F=F,error_style=error_style,custom_precision=cs[j],zpad=zpad) for i in axes(M,1), j in axes(M,2)]
+  m = [to_row([r...]) for r in eachrow(m)]
+  m[end]*=" $(F.bs)"
+  return m 
+end
 
 @doc raw"""
     make_table(M::AbstractMatrix; kwargs...)::Vector{String}
@@ -182,31 +199,66 @@ function make_table(M::AbstractMatrix;
   error_style::String="bz", 
   custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
   zpad::Bool = false) ::Vector{String}
-  output = Vector{String}(undef,size(M,1))  
+
+  
+  cs::Vector{Any} = [nothing for _ in 1:max(size(M)...)];
   if custom_precision isa Vector
-    cs::Vector{Any} = [nothing for _ in axes(M,2)];
-    for (c,precision) in custom_precision
-      cs[c] = precision
-    end
-    m = reduce(hcat,[format_numbers([M[:,c]...],custom_precision=cs[c]) for c in axes(M,2)])
-    for i in axes(m,2)
-      m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=cs[i],zpad=zpad)
-    end
+    [cs[c] = precision for (c,precision) in custom_precision]
   else
-    m = reduce(hcat,[format_numbers([c...],custom_precision=custom_precision) for c in eachcol(M)])
-    for i in axes(m,2)
-      m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=custom_precision,zpad=zpad)
-    end
+    [cs[c] = custom_precision for c in eachindex(cs)]
   end
 
-  for i in axes(m,2)
-    m[:,i] = to_string(m[:,i],F=F,error_style=error_style,custom_precision=custom_precision,zpad=zpad)
+  if !('z' in error_style)
+    return no_ze(M,cs,F,error_style,zpad)
   end
-    output = [to_row([r...]) for r in eachrow(m)]
+  
+  ## check for headers
+  header, type = if all(x-> x isa AbstractString, M[1,:]) && all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachcol(M[2:end,:]))
+    M[1,:], 'r'
+  elseif all(x-> x isa AbstractString, M[:,1]) && all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachrow(M[:,2:end]))
+    M[:,1], 'c'
+  elseif all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachcol(M))
+    nothing, 'v'
+  elseif all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachrow(M))
+    nothing, 'h'
+  else
+    @warn raw""" 
+    Multiple types in row and column, ignoring zero padding in errors.
+    To suppress this warning either remove 'z' from error style, 
+    or reorganize your table in such a way that each row or each column (header excluded)
+    contains entry of only one type. 
+    """
+    return no_ze(M,cs,F,filter(c->!(c != 'z'), error_style),zpad)
+  end
+
+  
+  m = if type =='r' 
+    reduce(hcat,[format_numbers([M[2:end,c]...],custom_precision=cs[c]) for c in axes(M,2)])
+  elseif type =='c'
+    reduce(vcat,rotate.([format_numbers([M[c,2:end]...],custom_precision=cs[c]) for c in axes(M,1)]))      
+  elseif type =='v'
+    reduce(hcat,[format_numbers([M[:,c]...], custom_precision=cs[c]) for c in axes(M,2)])
+  else
+    reduce(vcat,rotate.(format_numbers([M[c,:]...], custom_precision=cs[c]) for c in axes(M,1)))
+  end
+  println(m)
+  
+  output = Vector{String}(undef,size(M,1))
+  if !isnothing(header)
+    if type == 'r'
+      output[1] = to_row(header)*F.bs
+      output[2:end] = [to_row(m[c,:]) for c in axes(m,1)]
+    else
+      output = [to_row([header[c],m[c,:]...]) for c in axes(m,1)]
+    end
+  else
+    output = [to_row(m[c,:]) for c in axes(m,1)]
+  end
+  output[end]*=F.bs
   return output
 end
 
-
+#= 
 """
     make_table(data::AbstractVector...;k...)::Vector{String}
 
@@ -234,5 +286,9 @@ function make_table(data::AbstractVector ...; k...)::Vector{String}
     M[:,i] = data[i]
   end
   return make_table(M;k...)
-end
+end =#
 
+
+function make_table(data::Vector{Matrix{Any}};k...)
+  return vcat(make_table.(data;k...)...)
+end
