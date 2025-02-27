@@ -20,7 +20,7 @@ See also: [`LaTeXsyntax`](@ref)
   ms::String ## math envirorment separator
   pm::String ## pm style 
   bs::String ## block separator
-  empty::string
+  empty::String
 end
 
 @doc raw"""

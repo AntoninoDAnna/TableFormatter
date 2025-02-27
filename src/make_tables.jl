@@ -2,6 +2,18 @@ using Format
 magnitude(x::Real) = x==0.0 ? 1 : floor(Int64,log10(0.5*x))
 magnitude10(x::Real) = x==0.0 ? 2 : ceil(Int64,log10(x));
 non_zero(a::AbstractArray) = a[findall(x->x!=0.0,a)]
+
+function nonmissing(x::AbstractArray)
+  i = findfirst(y->!ismissing(y), x)
+  if isnothing(i)
+    return x[1]
+  end
+  return x[i]
+end
+
+istype(x, type...) = any(y-> x isa y, type)
+
+
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
 
 function rotate(M::AbstractMatrix) 
@@ -16,19 +28,19 @@ function rotate(M::AbstractVector)
   return m
 end
 
-function format_numbers(M::AbstractVector{Union{Missing,T}} where T; k...) 
+function format_numbers(M::AbstractVector{Union{Missing,T}} where T; F::Syntax=LaTeXsyntax,k...) 
   filter = findall(x->!ismissing(x),M)
   if length(filter) ==0
     return M
   end
-  output = fill(F.miss,length(M))
-  output[filter] = format_numbers([M[filter]...];k...)
+  output = fill(F.empty,length(M))
+  output[filter] = format_numbers([M[filter]...];F=F,k...)
   return output
 end
 
 format_numbers(V::AbstractVector{T} where T<:Real; F::Syntax=LaTeXsyntax,k...) = string(F.ms,"[",join(v,", "),"]",F.ms)
 
-format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real;F::Syntax=LaTeXsyntax;k...) =  format_numbers.(V,F=F;k...)
+format_numbers(V::AbstractVector{<:AbstractVector{T}} where T<:Real;F::Syntax=LaTeXsyntax,k...) =  format_numbers.(V,F=F;k...)
 
 format_numbers(A::AbstractString;k...) = A
 
@@ -47,7 +59,7 @@ function format_numbers(V::T;F::Syntax=LaTeXsyntax,custom_precision::Union{Nothi
   return string(F.ms,format(V,width=M+m+1,precision = m, zeropadding = zpad),F.ms)
 end
 
-function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat
+function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,F::Syntax=LaTeXsyntax,k...) where T <:AbstractFloat
   M= maximum(abs.(A));
   m= minimum(A)
   m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
@@ -63,7 +75,7 @@ function format_numbers(x::NTuple{N,T} where {N,T<:Real};error_style::String="bz
   N = length(x)
   err = [getfield(x,j) for j in 2:N]
   val = x[1]
-  m = isnothing(custom_precision) ? -magnitude((non_zero(err))) : custom_precision
+  m = isnothing(custom_precision) ? -magnitude.((non_zero(err))) : custom_precision
   err = round.(err,digits=m)
   val = round(val,digits=m)
   if 'p' in error_style
@@ -86,7 +98,7 @@ function format_numbers(x::NTuple{N,T} where {N,T<:Real};error_style::String="bz
   error("TableFormatter: non valid error style.")
 end
 
-function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
+function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};F::Syntax=LaTeXsyntax,error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
   N = length(M[1])
   err = [getfield(M[i],j) for i in eachindex(M), j in 2:N];
   val = getfield.(M,1);
@@ -106,10 +118,10 @@ function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};error_s
       err = format.(err,width=M+m+1,precision = m, zeropadding = true);
     end
   end
-  M = magnitude10(maximum(abs.(v)));
+  M = magnitude10(maximum(abs.(val)));
   val = format.(val,width=M+m+1,precision = m, zeropadding = zpad);
   if 'b' in error_style
-    return [string(F.ms,val[i],"(",join(err[:,i],")("),")",F.ms) for i in eachindex(val)]
+    return [string(F.ms,val[i],"(",join(err[i,:],")("),")",F.ms) for i in eachindex(val)]
   end
   error("TableFormatter: non valid error style.")
 end
@@ -199,13 +211,13 @@ function make_table(M::AbstractMatrix;
   end
   
   ## check for headers
-  header, type = if all(x-> x isa AbstractString, M[1,:]) && all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachcol(M[2:end,:]))
+  header, type = if all(x-> istype(x,AbstractString,Missing), M[1,:]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M[2:end,:]))
     M[1,:], 'r'
-  elseif all(x-> x isa AbstractString, M[:,1]) && all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachrow(M[:,2:end]))
+  elseif all(x-> istype(x,AbstractString,Missing), M[:,1]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M[:,2:end]))
     M[:,1], 'c'
-  elseif all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachcol(M))
+  elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M))
     nothing, 'v'
-  elseif all(x-> all(y-> y isa typeof(x[1]), x[2:end]),eachrow(M))
+  elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M))
     nothing, 'h'
   else
     @warn raw""" 
