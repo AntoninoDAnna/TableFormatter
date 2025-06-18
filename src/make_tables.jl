@@ -4,38 +4,47 @@ magnitude10(x::Real) = x==0.0 ? 2 : ceil(Int64,log10(x));
 non_zero(a::AbstractArray) = a[findall(x->x!=0.0,a)]
 
 function nonmissing(x::AbstractArray)
-  i = findfirst(y->!ismissing(y), x)
-  if isnothing(i)
-    return x[1]
-  end
-  return x[i]
+    i = findfirst(y->!ismissing(y), x)
+    if isnothing(i)
+        return x[1]
+    end
+
+    return x[i]
 end
 
 istype(x, type...) = any(y-> x isa y, type)
 
+function only_String(M::AbstractMatrix)
+    for c in CartesianIndices
+        if !(M[c] isa AbstractString)
+            continue;
+        end
+        M[c] = String(M[c])
+    end
+end
 
 to_row(A::AbstractVector;F::Syntax=LaTeXsyntax) = join(A,F.cs).*F.el
 
 function rotate(M::AbstractMatrix) 
-  m = typeof(M)(undef,size(M,2),size(M,1))
-  [m[i,j] = M[j,i] for i in axes(m,1), j in axes(m,2)]
-  return m
+    m = typeof(M)(undef,size(M,2),size(M,1))
+    [m[i,j] = M[j,i] for i in axes(m,1), j in axes(m,2)]
+    return m
 end
 
 function rotate(M::AbstractVector) 
-  m = Matrix{Any}(undef,1,size(M,1))
-  [m[1,j] = M[j] for j in axes(m,2)]
-  return m
+    m = Matrix{Any}(undef,1,size(M,1))
+    [m[1,j] = M[j] for j in axes(m,2)]
+    return m
 end
 
 function format_numbers(M::AbstractVector{Union{Missing,T}} where T; F::Syntax=LaTeXsyntax,k...) 
-  filter = findall(x->!ismissing(x),M)
-  if length(filter) ==0
-    return M
-  end
-  output = fill(F.empty,length(M))
-  output[filter] = format_numbers([M[filter]...];F=F,k...)
-  return output
+    filter = findall(x->!ismissing(x),M)
+    if length(filter) ==0
+        return M
+    end
+    output = fill(F.empty,length(M))
+    output[filter] = format_numbers([M[filter]...];F=F,k...)
+    return output
 end
 
 format_numbers(V::AbstractVector{T} where T<:Real; F::Syntax=LaTeXsyntax,k...) = string(F.ms,"[",join(v,", "),"]",F.ms)
@@ -49,89 +58,89 @@ format_numbers(M::AbstractVector{<:AbstractString};k...) = M
 format_numbers(x::Int64; F::Syntax=LaTeXsyntax,) = string(F.ms,x,F.ms)
 
 function format_numbers(V::AbstractVector{Int64},zpad::Bool=false;k...)
-  M = magnitude10(maximum(abs.(V)));
-  return format.(V,width=M,precision =M, zeropadding = zpad);
+    M = magnitude10(maximum(abs.(V)));
+    return format.(V,width=M,precision =M, zeropadding = zpad);
 end
 
 function format_numbers(V::T;F::Syntax=LaTeXsyntax,custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,k...) where T <:AbstractFloat  
-  m = isnothing(custom_precision) ? 8 : custom_precision
-  M = magnitude10(abs.(V));
-  return string(F.ms,format(V,width=M+m+1,precision = m, zeropadding = zpad),F.ms)
+    m = isnothing(custom_precision) ? 8 : custom_precision
+    M = magnitude10(abs.(V));
+    return string(F.ms,format(V,width=M+m+1,precision = m, zeropadding = zpad),F.ms)
 end
 
 function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,F::Syntax=LaTeXsyntax,k...) where T <:AbstractFloat
-  M= maximum(abs.(A));
-  m= minimum(A)
-  m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
-  if zpad && M>1.0
-    w = magnitude10(M)+m+1;
-    return [string(F.ms,format(a,precision = m, width=w, zeropadding = true), F.ms) for a in A]
-  else
-    return [string(F.ms,format(a,precision = m), F.ms) for a in A]
-  end
+    M= maximum(abs.(A));
+    m= minimum(A)
+    m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
+    if zpad && M>1.0
+        w = magnitude10(M)+m+1;
+        return [string(F.ms,format(a,precision = m, width=w, zeropadding = true), F.ms) for a in A]
+    else
+        return [string(F.ms,format(a,precision = m), F.ms) for a in A]
+    end
 end
 
 function format_numbers(x::NTuple{N,T} where {N,T<:Real};error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
-  N = length(x)
-  err = [getfield(x,j) for j in 2:N]
-  val = x[1]
-  m = isnothing(custom_precision) ? -magnitude.((non_zero(err))) : custom_precision
-  err = round.(err,digits=m)
-  val = round(val,digits=m)
-  if 'p' in error_style
-    return string(F.ms,join([val,err...],F.pm),F.ms)
-  end
-  if 'z' in error_style
-    M = magnitude10(maximum(err));
-    if all(err.<1.0)
-      err *= 10^float(m) 
-      err = format.(err,width=M+m,precision=0, zeropadding=true)
-    else
-      err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+    N = length(x)
+    err = [getfield(x,j) for j in 2:N]
+    val = x[1]
+    m = isnothing(custom_precision) ? -magnitude.((non_zero(err))) : custom_precision
+    err = round.(err,digits=m)
+    val = round(val,digits=m)
+    if 'p' in error_style
+        return string(F.ms,join([val,err...],F.pm),F.ms)
     end
-  end
-  M = magnitude10(abs(val));
-  val = format(val,width=M+m+1,precision = m, zeropadding = zpad);
-  if 'b' in error_style
-    return string(F.ms,val,"(",join(err,")("),")",F.ms)
-  end
-  error("TableFormatter: non valid error style.")
+    if 'z' in error_style
+        M = magnitude10(maximum(err));
+        if all(err.<1.0)
+            err *= 10^float(m)
+            err = format.(err,width=M+m,precision=0, zeropadding=true)
+        else
+            err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+        end
+    end
+    M = magnitude10(abs(val));
+    val = format(val,width=M+m+1,precision = m, zeropadding = zpad);
+    if 'b' in error_style
+        return string(F.ms,val,"(",join(err,")("),")",F.ms)
+    end
+    error("TableFormatter: non valid error style.")
 end
 
 function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};F::Syntax=LaTeXsyntax,error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
-  N = length(M[1])
-  err = [getfield(M[i],j) for i in eachindex(M), j in 2:N];
-  val = getfield.(M,1);
-  m = isnothing(custom_precision) ? -magnitude(minimum(non_zero(err))) : custom_precision
-  err = round.(err,digits=m)
-  val = round.(val,digits=m)
+    N = length(M[1])
+    err = [getfield(M[i],j) for i in eachindex(M), j in 2:N];
+    val = getfield.(M,1);
+    m = isnothing(custom_precision) ? -magnitude(minimum(non_zero(err))) : custom_precision
+    err = round.(err,digits=m)
+    val = round.(val,digits=m)
 
-  if 'p' in error_style
-    return [string(F.ms,join([val[i],err[:,i]...],F.pm),F.ms) for i in eachindex(val)]
-  end
-  if 'z' in error_style
-    M = magnitude10(maximum(err));
-    if all(err.<1.0)
-      err *= 10^float(m) 
-      err = format.(err,width=M+m,precision=0, zeropadding=true)
-    else
-      err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+    if 'p' in error_style
+        return [string(F.ms,join([val[i],err[:,i]...],F.pm),F.ms) for i in eachindex(val)]
     end
-  end
-  M = magnitude10(maximum(abs.(val)));
-  val = format.(val,width=M+m+1,precision = m, zeropadding = zpad);
-  if 'b' in error_style
-    return [string(F.ms,val[i],"(",join(err[i,:],")("),")",F.ms) for i in eachindex(val)]
-  end
-  error("TableFormatter: non valid error style.")
+    if 'z' in error_style
+        M = magnitude10(maximum(err));
+        if all(err.<1.0)
+            err *= 10^float(m)
+            err = format.(err,width=M+m,precision=0, zeropadding=true)
+        else
+            err = format.(err,width=M+m+1,precision = m, zeropadding = true);
+        end
+    end
+    M = magnitude10(maximum(abs.(val)));
+    val = format.(val,width=M+m+1,precision = m, zeropadding = zpad);
+    if 'b' in error_style
+        return [string(F.ms,val[i],"(",join(err[i,:],")("),")",F.ms) for i in eachindex(val)]
+    end
+    error("TableFormatter: non valid error style.")
 end
 
 function no_ze(M,custom_precision::Vector,F::Syntax,error_style,zpad)
-  m = [format_numbers(M[i,j],custom_precision=custom_precision[j]) for i in axes(M,1), j in axes(M,2)]
-  m = [to_string(m[i,j],F=F,error_style=error_style,custom_precision=cs[j],zpad=zpad) for i in axes(M,1), j in axes(M,2)]
-  m = [to_row([r...]) for r in eachrow(m)]
-  m[end]*=" $(F.bs)"
-  return m 
+    m = [format_numbers(M[i,j],custom_precision=custom_precision[j]) for i in axes(M,1), j in axes(M,2)]
+    m = [to_string(m[i,j],F=F,error_style=error_style,custom_precision=cs[j],zpad=zpad) for i in axes(M,1), j in axes(M,2)]
+    m = [to_row([r...]) for r in eachrow(m)]
+    m[end]*=" $(F.bs)"
+    return m
 end
 
 @doc raw"""
@@ -193,100 +202,101 @@ If a column has multiple types elements, an error is thrown.
 ```        
 """
 function make_table(M::AbstractMatrix;
-  F::Syntax=LaTeXsyntax,
-  error_style::String="bz", 
-  custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
-  zpad::Bool = false) ::Vector{String}
+                    F::Syntax=LaTeXsyntax,
+                    error_style::String="bz",
+                    custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
+                    zpad::Bool = false) ::Vector{String}
 
-  
-  cs::Vector{Any} = [nothing for _ in 1:max(size(M)...)];
-  if custom_precision isa Vector
-    [cs[c] = precision for (c,precision) in custom_precision]
-  else
-    [cs[c] = custom_precision for c in eachindex(cs)]
-  end
 
-  if !('z' in error_style)
-    return no_ze(M,cs,F,error_style,zpad)
-  end
-  
-  ## check for headers
-  header, type = if all(x-> istype(x,AbstractString,Missing), M[1,:]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M[2:end,:]))
-    M[1,:], 'r'
-  elseif all(x-> istype(x,AbstractString,Missing), M[:,1]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M[:,2:end]))
-    M[:,1], 'c'
-  elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M))
-    nothing, 'v'
-  elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M))
-    nothing, 'h'
-  else
-    @warn raw""" 
+    cs::Vector{Any} = [nothing for _ in 1:max(size(M)...)];
+    if custom_precision isa Vector
+        [cs[c] = precision for (c,precision) in custom_precision]
+    else
+        [cs[c] = custom_precision for c in eachindex(cs)]
+    end
+
+    if !('z' in error_style)
+        return no_ze(M,cs,F,error_style,zpad)
+    end
+
+    only_String(M);
+    ## check for headers
+    header, type = if all(x-> istype(x,AbstractString,Missing), M[1,:]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M[2:end,:]))
+        M[1,:], 'r'
+    elseif all(x-> istype(x,AbstractString,Missing), M[:,1]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M[:,2:end]))
+        M[:,1], 'c'
+    elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M))
+        nothing, 'v'
+    elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M))
+        nothing, 'h'
+    else
+        @warn raw"""
     Multiple types in row and column, ignoring zero padding in errors.
     To suppress this warning either remove 'z' from error style, 
     or reorganize your table in such a way that each row or each column (header excluded)
     contains entry of only one type. 
-    """
-    return no_ze(M,cs,F,filter(c->!(c != 'z'), error_style),zpad)
-  end
-
-  
-  m = if type =='r' 
-    reduce(hcat,[format_numbers([M[2:end,c]...],custom_precision=cs[c]) for c in axes(M,2)])
-  elseif type =='c'
-    reduce(vcat,rotate.([format_numbers([M[c,2:end]...],custom_precision=cs[c]) for c in axes(M,1)]))      
-  elseif type =='v'
-    reduce(hcat,[format_numbers([M[:,c]...], custom_precision=cs[c]) for c in axes(M,2)])
-  else
-    reduce(vcat,rotate.(format_numbers([M[c,:]...], custom_precision=cs[c]) for c in axes(M,1)))
-  end
-  println(m)
-  
-  output = Vector{String}(undef,size(M,1))
-  if !isnothing(header)
-    if type == 'r'
-      output[1] = to_row(header)*F.bs
-      output[2:end] = [to_row(m[c,:]) for c in axes(m,1)]
-    else
-      output = [to_row([header[c],m[c,:]...]) for c in axes(m,1)]
+      """
+        return no_ze(M,cs,F,filter(c->!(c != 'z'), error_style),zpad)
     end
-  else
-    output = [to_row(m[c,:]) for c in axes(m,1)]
-  end
-  output[end]*=F.bs
-  return output
+
+
+    m = if type =='r'
+        reduce(hcat,[format_numbers([M[2:end,c]...],custom_precision=cs[c]) for c in axes(M,2)])
+    elseif type =='c'
+        reduce(vcat,rotate.([format_numbers([M[c,2:end]...],custom_precision=cs[c]) for c in axes(M,1)]))
+    elseif type =='v'
+        reduce(hcat,[format_numbers([M[:,c]...], custom_precision=cs[c]) for c in axes(M,2)])
+    else
+        reduce(vcat,rotate.(format_numbers([M[c,:]...], custom_precision=cs[c]) for c in axes(M,1)))
+    end
+    println(m)
+
+    output = Vector{String}(undef,size(M,1))
+    if !isnothing(header)
+        if type == 'r'
+            output[1] = to_row(header)*F.bs
+            output[2:end] = [to_row(m[c,:]) for c in axes(m,1)]
+        else
+            output = [to_row([header[c],m[c,:]...]) for c in axes(m,1)]
+        end
+    else
+        output = [to_row(m[c,:]) for c in axes(m,1)]
+    end
+    output[end]*=F.bs
+    return output
 end
 
 #= 
 """
-    make_table(data::AbstractVector...;k...)::Vector{String}
+make_table(data::AbstractVector...;k...)::Vector{String}
 
 It takes a set of AbstractVector and generate a table. Each vector correspond to a column colum of 
 the table and all data vector must have the same number of data. Remember to use `missing` for empty
 table entries. 
 
 ## Example
-    v1 = [1,2,3]
-    v2 = ["test", missing, "test"]
-    v3 = [(12.0,0.2,0.3),(2.12,0.3,0.02),(2.22,0.03,0.51)]
+v1 = [1,2,3]
+v2 = ["test", missing, "test"]
+v3 = [(12.0,0.2,0.3),(2.12,0.3,0.02),(2.22,0.03,0.51)]
 
-    # "1 & test &  \$ 12.00(20)(30) \$ \\\\"  
-    # "2 &      &  \$  2.12(30)(02) \$ \\\\"
-    # "3 & test &  \$  2.22(03)(51) \$ \\\\"    
+# "1 & test &  \$ 12.00(20)(30) \$ \\\\"
+# "2 &      &  \$  2.12(30)(02) \$ \\\\"
+# "3 & test &  \$  2.22(03)(51) \$ \\\\"
 """
 function make_table(data::AbstractVector ...; k...)::Vector{String}
-  l = length(data);
-  n = length(data[1]);
-  if any(length.(data).!=n)
-    error("ERROR: The data vectors have diffenents size. Consider using 'missing' for empty table entries")
-  end
-  M = Matrix{Any}(undef,n,l)
-  for i in eachindex(data)
-    M[:,i] = data[i]
-  end
-  return make_table(M;k...)
+l = length(data);
+n = length(data[1]);
+if any(length.(data).!=n)
+error("ERROR: The data vectors have diffenents size. Consider using 'missing' for empty table entries")
+end
+M = Matrix{Any}(undef,n,l)
+for i in eachindex(data)
+M[:,i] = data[i]
+end
+return make_table(M;k...)
 end =#
 
 
 function make_table(data::Vector{Matrix{Any}};k...)
-  return vcat(make_table.(data;k...)...)
+    return vcat(make_table.(data;k...)...)
 end
