@@ -70,7 +70,8 @@ end
 
 function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int64}=nothing,zpad::Bool=false,F::Syntax=LaTeXsyntax,k...) where T <:AbstractFloat
     M= maximum(abs.(A));
-    m= minimum(A)
+    m= minimum(abs.(A));
+    println(m)
     m = isnothing(custom_precision) ? -magnitude(m) : custom_precision;
     if zpad && M>1.0
         w = magnitude10(M)+m+1;
@@ -78,6 +79,7 @@ function format_numbers(A::AbstractVector{T};custom_precision::Union{Nothing,Int
     else
         return [string(F.ms,format(a,precision = m), F.ms) for a in A]
     end
+
 end
 
 function format_numbers(x::NTuple{N,T} where {N,T<:Real};error_style::String="bz",zpad::Bool=false,custom_precision::Union{Nothing,Int64}=nothing,k...)
