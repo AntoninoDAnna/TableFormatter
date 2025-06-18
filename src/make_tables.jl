@@ -15,7 +15,7 @@ end
 istype(x, type...) = any(y-> x isa y, type)
 
 function only_String(M::AbstractMatrix)
-    for c in CartesianIndices
+    for c in CartesianIndices(M)
         if !(M[c] isa AbstractString)
             continue;
         end
