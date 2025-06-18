@@ -1,10 +1,10 @@
 module TableFormatter
-  using Format
-  
-  include("types.jl")
-  include("make_tables.jl")
+using Format
 
-  export Syntax,LaTeXsyntax
-  export make_table
+include("types.jl")
+include("make_tables.jl")
+
+export Syntax,LaTeXsyntax
+export make_table
 
 end # module TableFormatter

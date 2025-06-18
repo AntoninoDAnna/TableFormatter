@@ -1,5 +1,4 @@
-
-@doc raw""" 
+@doc raw"""
     @kwdef struct Syntax
 
 Define the syntax rules that are used during the table formatting. 
@@ -15,12 +14,12 @@ LaTeXsyntax is already defined and used by deafult.
 See also: [`LaTeXsyntax`](@ref)
 """
 @kwdef struct Syntax
-  cs::String ## column separator
-  el::String ## end line
-  ms::String ## math envirorment separator
-  pm::String ## pm style 
-  bs::String ## block separator
-  empty::String
+    cs::String ## column separator
+    el::String ## end line
+    ms::String ## math envirorment separator
+    pm::String ## pm style
+    bs::String ## block separator
+    empty::String
 end
 
 @doc raw"""
