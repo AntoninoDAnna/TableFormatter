@@ -14,6 +14,11 @@ end
 
 istype(x, type...) = any(y-> x isa y, type)
 
+@doc raw"""
+     only_String(M::AbstractMatrix)
+
+Convert any element that is an `AbstractString` into a `String`
+"""
 function only_String(M::AbstractMatrix)
     for c in CartesianIndices(M)
         if !(M[c] isa AbstractString)
@@ -142,13 +147,24 @@ function format_numbers(M::AbstractVector{NTuple{N,T}} where {N,T<:Real};F::Synt
     error("TableFormatter: non valid error style.")
 end
 
-
-
 function no_ze(M,custom_precision::Vector,F::Syntax,error_style,zpad)
     m = [format_numbers(M[i,j],custom_precision=custom_precision[j],error_style=error_style) for i in axes(M,1), j in axes(M,2)]
     m = [to_row([r...]) for r in eachrow(m)]
     m[end]*=" $(F.bs)"
     return m
+end
+
+function space_padding!(M::AbstractMatrix{<:AbstractString})
+    for j in axes(M,2)
+        lmax = maximum(length.(M[:,j]))
+        println(M[:,j])
+        for i in axes(M,1)
+            l = length(M[i,j])
+            n = div(lmax-l,2)
+            off = lmax-l-2n;
+            M[i,j] = string(" "^n, M[i,j], " "^(n+off))
+        end
+    end
 end
 
 @doc raw"""
@@ -213,7 +229,8 @@ function make_table(M::AbstractMatrix;
                     F::Syntax=LaTeXsyntax,
                     error_style::String="bz",
                     custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
-                    zpad::Bool = false) ::Vector{String}
+                    zpad::Bool = false,
+                    do_spadding::Bool = true)::Vector{String}
 
 
     cs::Vector{Any} = [nothing for _ in 1:max(size(M)...)];
@@ -224,20 +241,22 @@ function make_table(M::AbstractMatrix;
     end
 
     only_String(M);
-
+    _M = similar(M,String);
     if !('z' in error_style)
         return no_ze(M,cs,F,error_style,zpad)
     end
 
     ## check for headers
-    header, type = if all(x-> istype(x,AbstractString,Missing), M[1,:]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M[2:end,:]))
-        M[1,:], 'r'
+    type = if all(x-> istype(x,AbstractString,Missing), M[1,:]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M[2:end,:]))
+        _M[1,:] .=M[1,:]
+         'r'
     elseif all(x-> istype(x,AbstractString,Missing), M[:,1]) && all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M[:,2:end]))
-        M[:,1], 'c'
+        _M[:,1] .= M[1,:]
+        'c'
     elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachcol(M))
-        nothing, 'v'
+        'v'
     elseif all(x-> all(y-> istype(y,typeof(nonmissing(x)),Missing), x[2:end]),eachrow(M))
-        nothing, 'h'
+        'h'
     else
         @warn raw"""
     Multiple types in row and column, ignoring zero padding in errors.
@@ -248,28 +267,19 @@ function make_table(M::AbstractMatrix;
         return no_ze(M,cs,F,filter(c->!(c != 'z'), error_style),zpad)
     end
 
-    m = if type =='r'
-        reduce(hcat,[format_numbers([M[2:end,c]...],custom_precision=cs[c]) for c in axes(M,2)])
+    if type =='r'
+        _M[2:end,:] .= reduce(hcat,[format_numbers([M[2:end,c]...],custom_precision=cs[c]) for c in axes(M,2)])
     elseif type =='c'
-        reduce(vcat,rotate.([format_numbers([M[c,2:end]...],custom_precision=cs[c]) for c in axes(M,1)]))
+        _M[:,2:end] .= reduce(vcat,rotate.([format_numbers([M[c,2:end]...],custom_precision=cs[c]) for c in axes(M,1)]))
     elseif type =='v'
-        reduce(hcat,[format_numbers([M[:,c]...], custom_precision=cs[c]) for c in axes(M,2)])
+        _M .= reduce(hcat,[format_numbers([M[:,c]...], custom_precision=cs[c]) for c in axes(M,2)])
     else
-        reduce(vcat,rotate.(format_numbers([M[c,:]...], custom_precision=cs[c]) for c in axes(M,1)))
+        _M .=  reduce(vcat,rotate.(format_numbers([M[c,:]...], custom_precision=cs[c]) for c in axes(M,1)))
     end
 
+    do_spadding && space_padding!(_M)
 
-    output = Vector{String}(undef,size(M,1))
-    if !isnothing(header)
-        if type == 'r'
-            output[1] = to_row(header)*F.bs
-            output[2:end] = [to_row(m[c,:]) for c in axes(m,1)]
-        else
-            output = [to_row([header[c],m[c,:]...]) for c in axes(m,1)]
-        end
-    else
-        output = [to_row(m[c,:]) for c in axes(m,1)]
-    end
+    output = [to_row(_M[c,:]) for c in axes(_M,1)]
     output[end]*=F.bs
     return output
 end
