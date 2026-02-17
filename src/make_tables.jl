@@ -157,7 +157,7 @@ end
 function space_padding!(M::AbstractMatrix{<:AbstractString})
     for j in axes(M,2)
         lmax = maximum(length.(M[:,j]))
-        println(M[:,j])
+
         for i in axes(M,1)
             l = length(M[i,j])
             n = div(lmax-l,2)
@@ -230,7 +230,8 @@ function make_table(M::AbstractMatrix;
                     error_style::String="bz",
                     custom_precision::Union{Int64,Nothing,Vector{Tuple{Int64,Int64}}}=nothing,
                     zpad::Bool = false,
-                    do_spadding::Bool = true)::Vector{String}
+                    do_spadding::Bool = true,
+                    endline = nothing)::Vector{String}
 
 
     cs::Vector{Any} = [nothing for _ in 1:max(size(M)...)];
@@ -280,7 +281,13 @@ function make_table(M::AbstractMatrix;
     do_spadding && space_padding!(_M)
 
     output = [to_row(_M[c,:]) for c in axes(_M,1)]
-    output[end]*=F.bs
+    if isnothing(endline)
+        output[end]*=F.bs
+    else
+        for (idx,l) in endline
+            output[idx]*=l
+        end
+    end
     return output
 end
 
